@@ -6,16 +6,6 @@ app = Flask(__name__)
 # Список для хранения запросов
 requests_log = []
 
-# Словарь для хранения пользователей
-users = {
-    "admin": "password"  # Замените на ваши собственные учетные данные
-}
-
-def get_pw(username):
-    if username in users:
-        return users.get(username)
-    return None
-
 # HTML-шаблон для отображения запросов с использованием Bootstrap
 HTML_TEMPLATE = """
 <!doctype html>
@@ -47,7 +37,7 @@ HTML_TEMPLATE = """
                     <tr>
                         <th>Date and Time</th>
                         <th>Method</th>
-                        <th>URL</th>
+                        <th>IP Address</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,7 +45,7 @@ HTML_TEMPLATE = """
                     <tr data-toggle="modal" data-target="#modal-{{ loop.index }}">
                         <td>{{ req.timestamp }}</td>
                         <td>{{ req.method }}</td>
-                        <td>{{ req.referer }}</td>
+                        <td>{{ req.ip }}</td>
                     </tr>
 
                     <!-- Модальное окно для отображения заголовков и тела запроса -->
@@ -99,13 +89,12 @@ def log_request():
     req_data = {
         'timestamp': now.strftime('%Y-%m-%d %H:%M:%S') + f".{now.microsecond // 1000:03d}",  # Сохраняем дату и время запроса с миллисекундами
         'method': request.method,
-        'referer': request.referrer or request.url,  # Сохраняем URL, с которого был запрос
+        'ip': request.headers.get('X-Real-Ip', request.remote_addr),  # Сохраняем IP-адрес из заголовка X-Real-Ip или используем remote_addr
         'headers': dict(request.headers),
         'body': request.get_data(as_text=True)
     }
     requests_log.append(req_data)
-    return '', 204  # Возвращаем статус 204 No Content
-
+    return '', 204  # Возвращаем статус 204 No Content ```python
 @app.route('/clear', methods=['POST'])
 def clear_log():
     # Очищаем лог запросов
