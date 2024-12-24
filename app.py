@@ -1,10 +1,23 @@
 from flask import Flask, request, render_template_string, redirect, url_for
+from flask_httpauth import HTTPBasicAuth
 from datetime import datetime
 
 app = Flask(__name__)
+auth = HTTPBasicAuth()
 
 # Список для хранения запросов
 requests_log = []
+
+# Словарь для хранения пользователей
+users = {
+    "admin": "password"  # Замените на ваши собственные учетные данные
+}
+
+@auth.get_password
+def get_pw(username):
+    if username in users:
+        return users.get(username)
+    return None
 
 # HTML-шаблон для отображения запросов с использованием Bootstrap
 HTML_TEMPLATE = """
@@ -83,6 +96,7 @@ HTML_TEMPLATE = """
 """
 
 @app.route('/log', methods=['POST'])
+@auth.login_required
 def log_request():
     # Сохраняем запрос
     now = datetime.now()
@@ -97,6 +111,7 @@ def log_request():
     return '', 204  # Возвращаем статус 204 No Content
 
 @app.route('/clear', methods=['POST'])
+@auth.login_required
 def clear_log():
     # Очищаем лог запросов
     requests_log.clear()
