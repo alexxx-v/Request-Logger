@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, redirect, url_for, session
+from flask import Flask, request, render_template_string, redirect, url_for, session, jsonify
 from datetime import datetime
 
 app = Flask(__name__)
@@ -6,6 +6,7 @@ app.secret_key = 'your_secret_key'  # Замените на ваш собств�
 
 # Список для хранения запросов
 requests_log = []
+count_requests = 0
 
 # Словарь для хранения пользователей
 users = {
@@ -43,6 +44,7 @@ HTML_TEMPLATE = """
                 <table class="table table-bordered w-100">
                     <thead class="thead-light">
                         <tr>
+                            <th>ID</th>
                             <th>Date and Time</th>
                             <th>Method</th>
                             <th>IP Address</th>
@@ -51,6 +53,7 @@ HTML_TEMPLATE = """
                     <tbody>
                         {% for req in requests %}
                         <tr data-toggle="modal" data-target="#modal-{{ loop.index }}">
+                            <td>{{ req.id }}</td>
                             <td>{{ req.timestamp }}</td>
                             <td>{{ req.method }}</td>
                             <td>{{ req.ip }}</td>
@@ -127,22 +130,30 @@ def logout():
 
 @app.route('/log', methods=['POST'])
 def log_request():
+    global count_requests
     # Сохраняем запрос
     now = datetime.now()
+    count_requests += 1
     req_data = {
+        'id': count_requests,
         'timestamp': now.strftime('%Y-%m-%d %H:%M:%S') + f".{now.microsecond // 1000:03d}",  # Сохраняем дату и время запроса с миллисекундами
         'method': request.method,
         'ip': request.headers.get('X-Real-Ip', request.remote_addr),  # Сохраняем IP-адрес из заголовка X-Real-Ip или используем remote_addr
         'headers': dict(request.headers),
         'body': request.get_data(as_text=True)
     }
-    requests_log.append(req_data)
-    return '', 204  # Возвращаем статус 204 No Content
+    if count_requests >500:
+        return jsonify({"error": "Too many requests"}), 429  # Возвращаем статус 429 и сообщение об ошибке
+    else:
+        requests_log.append(req_data)
+        return '', 204  # Возвращаем статус 204 No Content
 
 @app.route('/clear', methods=['POST'])
 def clear_log():
+    global count_requests
     # Очищаем лог запросов
     requests_log.clear()
+    count_requests = 0
     return redirect(url_for('index'))  # Перенаправляем на главную страницу
 
 @app.route('/')
