@@ -31,15 +31,28 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container mt-5">
-        <h1>Request Logger</h1>
         {% if 'username' in session %}
-            <h2>Welcome, {{ session['username'] }}!</h2>
-            <h2>Received POST Requests</h2>
-            <div class="mb-3">
-                <form action="{{ url_for('clear_log') }}" method="post">
-                    <button type="submit" class="btn btn-danger">Clear Log</button>
-                </form>
+            <div class="container">
+                <div class="row">
+                    <div class="col">
+                        <form action="{{ url_for('clear_log') }}" method="post">
+                            <button type="submit" class="btn btn-danger">Clear list</button>
+                        </form>
+                    </div>
+                    <div class="col">
+                    </div>
+                    <div class="col float-right">
+                        <form class="float-right" method="post" action="{{ url_for('logout') }}">
+                            User: {{ session['username'] }}
+                            <button type="submit" class="btn btn-secondary">Logout</button>
+                        </form>
+                    </div>
+                </div>
             </div>
+            <div class="mb-3">
+                
+            </div>
+            
             <div class="table-responsive">
                 <table class="table table-bordered w-100">
                     <thead class="thead-light">
@@ -85,9 +98,6 @@ HTML_TEMPLATE = """
                     </tbody>
                 </table>
             </div>
-            <form method="post" action="{{ url_for('logout') }}">
-                <button type="submit" class="btn btn-danger">Logout</button>
-            </form>
         {% else %}
             <h2>Login</h2>
             <form method="post" action="{{ url_for('login') }}">
