@@ -1,12 +1,18 @@
-from flask import Flask, request, render_template_string, redirect, url_for
+from flask import Flask, request, render_template_string, redirect, url_for, session
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'  # Замените на ваш собственный секретный ключ
 
 # Список для хранения запросов
 requests_log = []
 
-# HTML-шаблон для отображения запросов с использованием Bootstrap
+# Словарь для хранения пользователей
+users = {
+    "admin": "password"  # Замените на ваши собственные учетные данные
+}
+
+# HTML-шаблон для отображения запросов с использованием Bootstrap и формы входа
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang="en">
@@ -25,62 +31,99 @@ HTML_TEMPLATE = """
 <body>
     <div class="container mt-5">
         <h1>Request Logger</h1>
-        <h2>Received POST Requests</h2>
-        <div class="mb-3">
-            <form action="{{ url_for('clear_log') }}" method="post">
-                <button type="submit" class="btn btn-danger">Clear Log</button>
-            </form>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-bordered w-100">
-                <thead class="thead-light">
-                    <tr>
-                        <th>Date and Time</th>
-                        <th>Method</th>
-                        <th>IP Address</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for req in requests %}
-                    <tr data-toggle="modal" data-target="#modal-{{ loop.index }}">
-                        <td>{{ req.timestamp }}</td>
-                        <td>{{ req.method }}</td>
-                        <td>{{ req.ip }}</td>
-                    </tr>
+        {% if 'username' in session %}
+            <h2>Welcome, {{ session['username'] }}!</h2>
+            <h2>Received POST Requests</h2>
+            <div class="mb-3">
+                <form action="{{ url_for('clear_log') }}" method="post">
+                    <button type="submit" class="btn btn-danger">Clear Log</button>
+                </form>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered w-100">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Date and Time</th>
+                            <th>Method</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requests %}
+                        <tr data-toggle="modal" data-target="#modal-{{ loop.index }}">
+                            <td>{{ req.timestamp }}</td>
+                            <td>{{ req.method }}</td>
+                            <td>{{ req.ip }}</td>
+                        </tr>
 
-                    <!-- Модальное окно для отображения заголовков и тела запроса -->
-                    <div class="modal fade" id="modal-{{ loop.index }}" tabindex="-1" role="dialog" aria-labelledby="modalLabel-{{ loop.index }}" aria-hidden="true">
-                        <div class="modal-dialog" role="document">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="modalLabel-{{ loop.index }}">Request Details</h5>
-                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
-                                <div class="modal-body">
-                                    <strong>Headers:</strong>
-                                    <pre>{{ req.headers }}</pre>
-                                    <strong>Body:</strong>
-                                    <pre>{{ req.body }}</pre>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <!-- Модальное окно для отображения заголовков и тела запроса -->
+                        <div class="modal fade" id="modal-{{ loop.index }}" tabindex="-1" role="dialog" aria-labelledby="modalLabel-{{ loop.index }}" aria-hidden="true">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalLabel-{{ loop.index }}">Request Details</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <strong>Headers:</strong>
+                                        <pre>{{ req.headers }}</pre>
+                                        <strong>Body:</strong>
+                                        <pre>{{ req.body }}</pre>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <form method="post" action="{{ url_for('logout') }}">
+                <button type="submit" class="btn btn-danger">Logout</button>
+            </form>
+        {% else %}
+            <h2>Login</h2>
+            <form method="post" action="{{ url_for('login') }}">
+                <label for="username">Username:</label>
+                <input type="text" name="username" required>
+                <br>
+                <label for="password">Password:</label>
+                <input type="password" name="password" required>
+                <br>
+                <button type="submit">Login</button>
+            </form>
+            {% if error %}
+                <p style="color: red;">{{ error }}</p>
+            {% endif %}
+        {% endif %}
     </div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr .net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
 """
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username in users and users[username] == password:
+            session['username'] = username  # Сохраняем имя пользователя в сессии
+            return redirect(url_for('index'))  # Перенаправляем на главную страницу
+        else:
+            return render_template_string(HTML_TEMPLATE, requests=requests_log, error="Invalid credentials")  # Отображаем ошибку
+    return render_template_string(HTML_TEMPLATE, requests=requests_log)  # Отображаем форму входа
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.pop('username', None)  # Удаляем имя пользователя из сессии
+    return redirect(url_for('index'))  # Перенаправляем на главную страницу
 
 @app.route('/log', methods=['POST'])
 def log_request():
@@ -94,7 +137,8 @@ def log_request():
         'body': request.get_data(as_text=True)
     }
     requests_log.append(req_data)
-    return '', 204  # Возвращаем статус 204 No Content ```python
+    return '', 204  # Возвращаем статус 204 No Content
+
 @app.route('/clear', methods=['POST'])
 def clear_log():
     # Очищаем лог запросов
